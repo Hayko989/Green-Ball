@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>First Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #222;
+            touch-action: manipulation;
+            overflow: hidden;
+            user-select: none;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 95vw;
+            height: 70vh;
+            max-width: 400px;
+            max-height: 600px;
+            background-color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        #game-area {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        #player {
+            width: 35px;
+            height: 35px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.7);
+            z-index: 10;
+            transition: transform 0.1s;
+        }
+        
+        .enemy {
+            width: 30px;
+            height: 30px;
+            background-color: #F44336;
+            border-radius: 4px;
+            position: absolute;
+            box-shadow: 0 0 10px rgba(244, 67, 54, 0.7);
+        }
+        
+        .bullet {
+            width: 5px;
+            height: 15px;
+            background-color: #FFEB3B;
+            position: absolute;
+            border-radius: 3px;
+        }
+        
+        #score-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 16px;
+            color: white;
+            z-index: 20;
+            background-color: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 10px;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 0 20px;
+        }
+        
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: manipulation;
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+        }
+        
+        #start-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            border-radius: 30px;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        #game-title {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-area">
+            <div id="score-display">Счет: 0</div>
+            <div id="player"></div>
+            
+            <div id="start-screen">
+                <h1 id="game-title"><br></h1>
+                <button id="start-btn">Start</button>
+            </div>
+        </div>
+        
+        <div id="controls">
+            <button id="left-btn" class="control-btn">←</button>
+            <button id="up-btn" class="control-btn">↑</button>
+            <button id="down-btn" class="control-btn">↓</button>
+            <button id="right-btn" class="control-btn">→</button>
+        </div>
+    </div>
+
+    <script>
+        // Элементы игры
+        const gameArea = document.getElementById('game-area');
+        const player = document.getElementById('player');
+        const scoreDisplay = document.getElementById('score-display');
+        const startScreen = document.getElementById('start-screen');
+        const startBtn = document.getElementById('start-btn');
+        
+        // Кнопки управления
+        const leftBtn = document.getElementById('left-btn');
+        const rightBtn = document.getElementById('right-btn');
+        const upBtn = document.getElementById('up-btn');
+        const downBtn = document.getElementById('down-btn');
+        
+        // Игровые переменные
+        let gameWidth, gameHeight;
+        let playerX, playerY;
+        const playerSize = 35;
+        const playerSpeed = 6;
+        let score = 0;
+        let gameRunning = false;
+        let enemies = [];
+        let bullets = [];
+        let animationId;
+        let lastEnemyTime = 0;
+        let enemyInterval = 1500;
+        
+        // Флаги движения
+        let moveLeft = false;
+        let moveRight = false;
+        let moveUp = false;
+        let moveDown = false;
+        
+        // Инициализация игры
+        function initGame() {
+            gameWidth = gameArea.offsetWidth;
+            gameHeight = gameArea.offsetHeight;
+            
+            playerX = gameWidth / 2 - playerSize / 2;
+            playerY = gameHeight / 2 - playerSize / 2;
+            
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+            
+            score = 0;
+            scoreDisplay.textContent = `Счет: ${score}`;
+            enemies = [];
+            bullets = [];
+            
+            // Очищаем всех врагов и пули
+            document.querySelectorAll('.enemy, .bullet').forEach(el => {
+                el.remove();
+            });
+            
+            gameRunning = true;
+            lastEnemyTime = 0;
+            enemyInterval = 1500;
+            
+            startScreen.style.display = 'none';
+            
+            // Запускаем игровой цикл
+            gameLoop();
+        }
+        
+        // Игровой цикл
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+            
+            // Двигаем игрока
+            if (moveLeft) movePlayer(-playerSpeed, 0);
+            if (moveRight) movePlayer(playerSpeed, 0);
+            if (moveUp) movePlayer(0, -playerSpeed);
+            if (moveDown) movePlayer(0, playerSpeed);
+            
+            // Создаем врагов
+            if (timestamp - lastEnemyTime > enemyInterval) {
+                createEnemy();
+                lastEnemyTime = timestamp;
+                
+                // Уменьшаем интервал между врагами (но не менее 800ms)
+                enemyInterval = Math.max(800, enemyInterval - 10);
+            }
+            
+            // Двигаем врагов
+            moveEnemies();
+            
+            // Двигаем пули
+            moveBullets();
+            
+            // Проверяем столкновения
+            checkCollisions();
+            
+            animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        // Создание врага
+        function createEnemy() {
+            const enemy = document.createElement('div');
+            enemy.className = 'enemy';
+            
+            const size = 25 + Math.random() * 20;
+            enemy.style.width = size + 'px';
+            enemy.style.height = size + 'px';
+            
+            // Появление с краев экрана
+            const side = Math.floor(Math.random() * 4);
+            let x, y;
+            
+            switch(side) {
+                case 0: // сверху
+                    x = Math.random() * gameWidth;
+                    y = -size;
+                    break;
+                case 1: // справа
+                    x = gameWidth;
+                    y = Math.random() * gameHeight;
+                    break;
+                case 2: // снизу
+                    x = Math.random() * gameWidth;
+                    y = gameHeight;
+                    break;
+                case 3: // слева
+                    x = -size;
+                    y = Math.random() * gameHeight;
+                    break;
+            }
+            
+            enemy.style.left = x + 'px';
+            enemy.style.top = y + 'px';
+            
+            gameArea.appendChild(enemy);
+            
+            // Враг движется к игроку
+            const angle = Math.atan2(
+                playerY + playerSize/2 - y - size/2,
+                playerX + playerSize/2 - x - size/2
+            );
+            
+            const speed = 1 + Math.random() * 2 + score / 100;
+            
+            enemies.push({
+                element: enemy,
+                x: x,
+                y: y,
+                speedX: Math.cos(angle) * speed,
+                speedY: Math.sin(angle) * speed,
+                size: size
+            });
+        }
+        
+        // Движение врагов
+        function moveEnemies() {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                enemy.x += enemy.speedX;
+                enemy.y += enemy.speedY;
+                
+                enemy.element.style.left = enemy.x + 'px';
+                enemy.element.style.top = enemy.y + 'px';
+                
+                // Удаляем врагов, вышедших за пределы экрана
+                if (enemy.x < -100 || enemy.x > gameWidth + 100 || 
+                    enemy.y < -100 || enemy.y > gameHeight + 100) {
+                    enemy.element.remove();
+                    enemies.splice(i, 1);
+                }
+            }
+        }
+        
+        // Создание пули
+        function createBullet() {
+            if (!gameRunning) return;
+            
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet';
+            
+            const x = playerX + playerSize/2 - 2.5;
+            const y = playerY - 15;
+            
+            bullet.style.left = x + 'px';
+            bullet.style.top = y + 'px';
+            
+            gameArea.appendChild(bullet);
+            
+            bullets.push({
+                element: bullet,
+                x: x,
+                y: y,
+                speed: 7
+            });
+        }
+        
+        // Движение пуль
+        function moveBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.y -= bullet.speed;
+                bullet.element.style.top = bullet.y + 'px';
+                
+                // Удаляем пули, вышедшие за пределы экрана
+                if (bullet.y < -15) {
+                    bullet.element.remove();
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+        
+        // Проверка столкновений
+        function checkCollisions() {
+            const playerRect = {
+                x: playerX,
+                y: playerY,
+                width: playerSize,
+                height: playerSize
+            };
+            
+            // Проверка столкновений игрока с врагами
+            for (let i = 0; i < enemies.length; i++) {
+                const enemy = enemies[i];
+                const enemyRect = {
+                    x: enemy.x,
+                    y: enemy.y,
+                    width: enemy.size,
+                    height: enemy.size
+                };
+                
+                if (isColliding(playerRect, enemyRect)) {
+                    endGame();
+                    return;
+                }
+            }
+            
+            // Проверка столкновений пуль с врагами
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                const bulletRect = {
+                    x: bullet.x,
+                    y: bullet.y,
+                    width: 5,
+                    height: 15
+                };
+                
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    const enemyRect = {
+                        x: enemy.x,
+                        y: enemy.y,
+                        width: enemy.size,
+                        height: enemy.size
+                    };
+                    
+                    if (isColliding(bulletRect, enemyRect)) {
+                        // Удаляем пулю и врага
+                        bullet.element.remove();
+                        bullets.splice(i, 1);
+                        
+                        enemy.element.remove();
+                        enemies.splice(j, 1);
+                        
+                        // Увеличиваем счет
+                        score += 10;
+                        scoreDisplay.textContent = `Счет: ${score}`;
+                        
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Проверка пересечения прямоугольников
+        function isColliding(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+        
+        // Движение игрока
+        function movePlayer(dx, dy) {
+            const newX = playerX + dx;
+            const newY = playerY + dy;
+            
+            // Проверка границ
+            if (newX >= 0 && newX <= gameWidth - playerSize) {
+                playerX = newX;
+            }
+            
+            if (newY >= 0 && newY <= gameHeight - playerSize) {
+                playerY = newY;
+            }
+            
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+        }
+        
+        // Конец игры
+        function endGame() {
+            gameRunning = false;
+            cancelAnimationFrame(animationId);
+            
+            // Анимация проигрыша
+            player.style.backgroundColor = '#F44336';
+            player.style.transform = 'scale(1.3)';
+            
+            setTimeout(() => {
+                startScreen.style.display = 'flex';
+                player.style.backgroundColor = '#4CAF50';
+                player.style.transform = 'scale(1)';
+            }, 500);
+        }
+        
+        // Настройка управления
+        function setupControls() {
+            // Функции для управления кнопками
+            function setMove(direction, state) {
+                switch(direction) {
+                    case 'left': moveLeft = state; break;
+                    case 'right': moveRight = state; break;
+                    case 'up': moveUp = state; break;
+                    case 'down': moveDown = state; break;
+                }
+            }
+            
+            // Настройка кнопок
+            const setupButton = (btn, direction) => {
+                // Сенсорное управление
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    setMove(direction, true);
+                });
+                
+                btn.addEventListener('touchend', () => {
+                    setMove(direction, false);
+                });
+                
+                btn.addEventListener('touchcancel', () => {
+                    setMove(direction, false);
+                });
+                
+                // Управление мышью
+                btn.addEventListener('mousedown', () => {
+                    setMove(direction, true);
+                });
+                
+                btn.addEventListener('mouseup', () => {
+                    setMove(direction, false);
+                });
+                
+                btn.addEventListener('mouseleave', () => {
+                    setMove(direction, false);
+                });
+            };
+            
+            // Настройка всех кнопок
+            setupButton(leftBtn, 'left');
+            setupButton(rightBtn, 'right');
+            setupButton(upBtn, 'up');
+            setupButton(downBtn, 'down');
+            
+            // Управление с клавиатуры
+            document.addEventListener('keydown', (e) => {
+                if (!gameRunning) return;
+                
+                switch(e.key) {
+                    case 'ArrowLeft': moveLeft = true; break;
+                    case 'ArrowRight': moveRight = true; break;
+                    case 'ArrowUp': moveUp = true; break;
+                    case 'ArrowDown': moveDown = true; break;
+                    case ' ': createBullet(); break;
+                }
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                switch(e.key) {
+                    case 'ArrowLeft': moveLeft = false; break;
+                    case 'ArrowRight': moveRight = false; break;
+                    case 'ArrowUp': moveUp = false; break;
+                    case 'ArrowDown': moveDown = false; break;
+                }
+            });
+            
+            // Стрельба по тапу на экран
+            gameArea.addEventListener('touchstart', (e) => {
+                if (gameRunning && e.target === gameArea) {
+                    e.preventDefault();
+                    createBullet();
+                }
+            });
+        }
+        
+        // Запуск игры при нажатии кнопки
+        startBtn.addEventListener('click', initGame);
+        
+        // Настройка управления
+        setupControls();
+        
+        // Предотвращение скролла при касании кнопок
+        document.addEventListener('touchmove', (e) => {
+            if (e.target.classList.contains('control-btn')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Инициализация размеров при загрузке
+        window.addEventListener('load', () => {
+            gameWidth = gameArea.offsetWidth;
+            gameHeight = gameArea.offsetHeight;
+        });
+        
+        // Обработка изменения ориентации экрана
+        window.addEventListener('resize', () => {
+            if (!gameRunning) {
+                gameWidth = gameArea.offsetWidth;
+                gameHeight = gameArea.offsetHeight;
+            }
+        });
+    </script>
+</body>
+</html>
